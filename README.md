@@ -26,3 +26,28 @@ A configurable local development solution with a management app, multi-version P
     ├── Dockerfile-81                                # PHP 8.1 with composer @ v2, drush
     └── Dockerfile-82                                # PHP 8.2 with composer @ v2, drush
 ```
+
+### Usage
+```
+./devenv 
+
+No function passed, exiting 
+--------------------------------
+Usage: devenv [function] [param]
+
+Functions:
+
+   setup  - Setup the development environment
+   load  - Load the database from a sql file
+   dump  - Dump the database to a sql file
+   clone  - Clone the repo into the html directory
+   start  - Start the development environment
+   stop  - Stop the development environment
+   preload  - Run the preload script (load public/private files)
+   attach  - Attach to the frontend container
+   attachto  - Attach to an active container
+   destroy  - Destroy the development environment
+   destroyall  - Destroy all containers, images, volumes, networks, and your dev environment
+   rsync  - Rsync the sites/default/files from remote to local
+
+```
