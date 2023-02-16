@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2154,SC1091
 #---------------------------------------------------------------------------------------------------
-#  *                              Devenv 0.1.0 - Dev Environment Management Script
+#  *                              Devenv 0.2.5 - Dev Environment Management Script
 #
 #    Author: Bill Fritz
 #    Description: Dev Environment Management Script
@@ -10,6 +10,8 @@
 #---------------------------------------------------------------------------------------------------
 
 source .env
+drfunction="$1"
+drparam="$2"
 
 # TPUT Colors
 # --------------------------------------------------------------------------------------------------
