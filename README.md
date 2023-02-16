@@ -2,6 +2,8 @@
 ---
 A configurable local development solution with a management app, multi-version PHP, and MySQL.
 
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/uwbfritz/devenv/main.yml?style=plastic)
+
 ### Contents
 ```
 ├── compose                                          # Compose file directory
