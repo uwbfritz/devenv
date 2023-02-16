@@ -29,9 +29,12 @@ A configurable local development solution with a management app, multi-version P
 
 ### Usage
 ```
-./devenv 
+# Set up environment
+./devenv setup
 
-No function passed, exiting 
+# Start environment
+./devenv start
+
 --------------------------------
 Usage: devenv [function] [param]
 
