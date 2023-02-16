@@ -297,7 +297,7 @@ function main() {
     echo "  $green attachto $clear - Attach to an active container"
     echo "  $green destroy $clear - Destroy the development environment"
     echo "  $green destroyall $clear - Destroy all containers, images, volumes, networks, and your dev environment"
-    echo "  $green rsync $clear - Rsync the sites/default/files from uwtdev3 to local"
+    echo "  $green rsync $clear - Rsync the sites/default/files from remote to local"
     echo ""
     exit 1
     ;;
