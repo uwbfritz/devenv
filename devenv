@@ -47,7 +47,7 @@ function setupenv() {
   echo ""
   echo "Is this a Drupal project? (yes or no)"
   read -r drdrupal
-  sed -i "s/drdrupal=.*/drdrupal=\"$drdrupal\"/g" .env
+  sed -i "s/drdrupal=.*/drdrupal=$drdrupal/g" .env
   echo ""
   if [ "$drdrupal" = "yes" ]; then
     echo "Please enter the name of the private files directory you want to use."
