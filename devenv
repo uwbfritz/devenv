@@ -25,6 +25,57 @@ bold=$(tput bold)
 # Functions
 # --------------------------------------------------------------------------------------------------
 
+function setupenv() {
+  # Prompt for the user to set .env values drtag, drdatabase, drrepo, drrsyncremotehost, drrsyncremotepath, drrsynclocalpath, drdrupal, drprivatefilepath, drpublicfilepath. Use the sed command to replace the values in the .env file. 
+  echo "Setting up environment variables..."
+  echo ""
+  echo "Please enter PHP version you want to use. (7.4, 8.1, 8.2)"
+  read -r drtag
+  sed -i "s/drtag=.*/drtag=$drtag/g" .env
+  echo ""
+  echo "Please enter a name for the database"
+  read -r drdatabase
+  sed -i "s/drdatabase=.*/drdatabase=$drdatabase/g" .env
+  echo ""
+  echo "Please choose a password for the root database user"
+  read -r drdbpassword
+  sed -i "s/drdbpassword=.*/drdbpassword=$drdbpassword/g" .env
+  echo ""
+  echo "Please enter the https URL of the repo you want to use."
+  read -r drrepo
+  sed -i "s~drrepo=.*~drrepo=\"${drrepo}\"~g" .env
+  echo ""
+  echo "Is this a Drupal project? (yes or no)"
+  read -r drdrupal
+  sed -i "s/drdrupal=.*/drdrupal=$drdrupal/g" .env
+  echo ""
+  if [ "$drdrupal" = "yes" ]; then
+    echo "Please enter the name of the private files directory you want to use."
+    read -r drprivatefilepath
+    sed -i "s~drprivatefilepath=.*~drprivatefilepath=$drprivatefilepath~g" .env
+    echo ""
+    echo "Please enter the name of the public files directory you want to use."
+    read -r drpublicfilepath
+    sed -i "s~drpublicfilepath=.*~drpublicfilepath=$drpublicfilepath~g" .env
+    echo ""
+    echo "Please enter the name of the remote host you want to use for rsync."
+    read -r drrsyncremotehost
+    sed -i "s~drrsyncremotehost=.*~drrsyncremotehost=$drrsyncremotehost~g" .env
+    echo ""
+    echo "Please enter the name of the remote path you want to use for rsync."
+    read -r drrsyncremotepath
+    sed -i "s~drrsyncremotepath=.*~drrsyncremotepath=$drrsyncremotepath~g" .env
+    echo ""
+    echo "Please enter the name of the local path you want to use for rsync."
+    read -r drrsynclocalpath
+    sed -i "s~drrsynclocalpath=.*~drrsynclocalpath=$drrsynclocalpath~g" .env
+    echo ""  
+  fi
+
+echo "Setting up environment variables...${green}Done${clear}"
+}
+
+
 function load_db() {
   if [ -z "$drparam" ]; then
     echo "No SQL file supplied"
@@ -191,6 +242,9 @@ function rsync_files(){
 
 function main() {
   case "$drfunction" in
+  "setup")
+    setupenv
+    ;;
   "load")
     load_db "$drparam"
     ;;
@@ -232,6 +286,7 @@ function main() {
     echo "$yellow$bold$uline"
     echo "Functions:$clear"
     echo ""
+    echo "  $green setup $clear - Setup the development environment"
     echo "  $green load $clear - Load the database from a sql file"
     echo "  $green dump $clear - Dump the database to a sql file"
     echo "  $green clone $clear - Clone the repo into the html directory"
