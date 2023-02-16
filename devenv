@@ -1,0 +1,250 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2154,SC1091
+#---------------------------------------------------------------------------------------------------
+#  *                              Devenv 0.1.0 - Dev Environment Management Script
+#
+#    Author: Bill Fritz
+#    Description: Dev Environment Management Script
+#    Last Modified: 2023-01-25
+#
+#---------------------------------------------------------------------------------------------------
+
+source .env
+
+# TPUT Colors
+# --------------------------------------------------------------------------------------------------
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+yellow=$(tput setaf 3)
+clear=$(tput sgr0)
+uline=$(tput smul)
+bold=$(tput bold)
+
+# Functions
+# --------------------------------------------------------------------------------------------------
+
+function load_db() {
+  if [ -z "$drparam" ]; then
+    echo "No SQL file supplied"
+    exit 1
+  else
+    docker cp "$1" "$(docker ps -aqf "name=$drcontainer")":/tmp/"$drparam"
+    docker exec -it "$(docker ps -aqf "name=$drcontainer")" /usr/bin/mysql -u"$drdbuser" -p"$drdbpassword" -hdb "$drdatabase" -e 'source /tmp/'"$drparam"''
+  fi
+}
+
+function dump_db() {
+  docker exec -it "$(docker ps -aqf "name=$drcontainer")" /usr/bin/mysqldump -u"$drdbuser" -p"$drdbpassword" -hdb "$drdatabase" > db_dump.sql
+}
+
+function clone_repo() {
+  docker exec -it "$(docker ps -aqf "name=$drcontainer")" /bin/bash -c "cd /var/www/html && git init && \
+  git config --global --add safe.directory /var/www/html && \
+  git remote add origin $drrepo && \
+  git pull origin master --allow-unrelated-histories && \
+  git fetch --all"
+}
+
+function start_devenv() {
+  if [ -z "$drdrupal" ]; then
+    echo "Environment variable drdrupal is not set. Please set it to yes or no."
+    exit 1
+  fi
+  if [ "$drdrupal" = "no" ] && [ "$drtag" = "8.1" ] || [ "$drtag" = "8.2" ]; then
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-native-8.yml pull
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-native-8.yml up -d
+  elif [ "$drdrupal" = "no" ] && [ "$drtag" = "7.4" ]; then
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-native-7.yml pull
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-native-7.yml up -d
+  fi
+
+  if [ "$drdrupal" = "yes" ] && [ "$drtag" = "8.1" ] || [ "$drtag" = "8.2" ]; then
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-drupal-8.yml pull
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-drupal-8.yml up -d
+  elif [ "$drdrupal" = "yes" ] && [ "$drtag" = "7.4" ]; then
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-drupal-7.yml pull
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-drupal-7.yml up -d
+  fi
+
+}
+
+function stop_devenv() {
+  if [ "$drdrupal" = "no" ] && [ "$drtag" = "8.1" ] || [ "$drtag" = "8.2" ]; then
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-native-8.yml down
+  elif [ "$drdrupal" = "no" ] && [ "$drtag" = "7.4" ]; then
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-native-7.yml down
+  fi
+
+  if [ "$drdrupal" = "yes" ] && [ "$drtag" = "8.1" ] || [ "$drtag" = "8.2" ]; then
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-drupal-8.yml down
+  elif [ "$drdrupal" = "yes" ] && [ "$drtag" = "7.4" ]; then
+    docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-drupal-7.yml down
+  fi
+}
+
+function preload_files() {
+  drprefix="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+  drprefix="$(basename "$drprefix")"
+  echo "Loading private files..."
+  docker run --rm -v "${drprivatefilepath}":/d9privatefiles -v "${drprefix}"_private:/home/d9privatefiles busybox cp -r /d9privatefiles /home
+  echo ""
+  echo "Loading public files..."
+  docker run --rm -v "${drpublicfilepath}":/files -v "${drprefix}"_public:/var/www/html/web/sites/default/files busybox cp -r /files /var/www/html/web/sites/default
+}
+
+# Attach to frontend container
+function attach() {
+  docker exec -it "$(docker ps -aqf "name=$drcontainer")" /bin/bash
+}
+
+function attachto() {
+if [ -x "$(command -v dialog)" ]; then
+    mapfile -t containers < <(docker ps --format "{{.Names}}\n")
+    while choice=$(dialog --title "$TITLE" \
+                    --menu "Please select" 10 40 3 "${containers[@]}" \
+                    2>&1 >/dev/tty)
+        do
+        if [ -n "$choice" ]; then
+            clear
+            docker exec -it "$choice" /bin/bash
+        fi
+        exit
+    done
+    clear
+else
+    mapfile -t containers < <(docker ps --format "{{.Names}}")
+    echo "Select a container to attach to:"
+    select container in "${containers[@]}"; do
+            if [ "$REPLY" -eq 0 ]; then
+                echo "Exiting..."
+                exit 0
+            fi
+        if [ -n "$container" ]; then
+            docker exec -it "$container" /bin/bash
+        fi
+        exit
+    done
+    fi
+}
+
+function destroy_devenv() {
+  read -p "Are you sure you want to destroy the development environment? (y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [ "$drdrupal" = "no" ] && [ "$drtag" = "8.1" ] || [ "$drtag" = "8.2" ]; then
+      docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-native-8.yml down
+      docker volume rm "$(docker volume ls -q)"
+    elif [ "$drdrupal" = "no" ] && [ "$drtag" = "7.4" ]; then
+      docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-native-7.yml down
+      docker volume rm "$(docker volume ls -q)"
+    fi
+    if [ "$drdrupal" = "yes" ] && [ "$drtag" = "8.1" ] || [ "$drtag" = "8.2" ]; then
+      docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-drupal-8.yml down
+      docker volume rm "$(docker volume ls -q)"
+    elif [ "$drdrupal" = "yes" ] && [ "$drtag" = "7.4" ]; then
+      docker-compose --env-file "$(pwd)"/.env -f ./compose/compose-drupal-7.yml down
+      docker volume rm "$(docker volume ls -q)"
+    fi
+  else
+    echo "Exiting"
+    exit 1
+  fi
+}
+
+function destroy_all() {
+  read -p "Are you sure you want to destroy all containers, images, volumes, networks, and your dev environment? (y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    docker stop "$(docker ps -q)"
+    docker rm "$(docker ps -a -q)"
+    docker rmi "$(docker images -q)"
+    docker volume rm "$(docker volume ls -q)"
+    docker network rm "$(docker network ls -q)"
+    echo "y" | docker system prune -a
+    sudo rm -rf html data
+  else
+    echo "Exiting"
+    exit 1
+  fi
+}
+
+
+# Rsync the files from uwtdev3 -> local
+function rsync_files(){
+  if [ -d "$drrsynclocalpath" ]; then
+    echo "Rsyncing files..."
+    echo ""
+    echo ""
+    rsync "$drrsyncremotehost":"$drrsyncremotepath" "$drrsynclocalpath"  --ignore-existing -rv --omit-dir-times --no-perms --no-o --no-g
+    echo ""
+    echo ""
+    echo "Files rsynced"
+    echo ""
+    echo ""
+  else
+    echo "$drrsynclocalpath directory not found, exiting"
+    exit 1
+  fi
+}
+
+function main() {
+  case "$drfunction" in
+  "load")
+    load_db "$drparam"
+    ;;
+  "dump")
+    dump_db
+    ;;
+  "clone")
+    clone_repo
+    ;;
+  "start")
+    start_devenv
+    ;;
+  "stop")
+    stop_devenv
+    ;;
+  "preload")
+    preload_files
+    ;;
+  "attach")
+    attach
+    ;;
+  "attachto")
+    attachto
+    ;;
+  "destroy")
+    destroy_devenv
+    ;;
+  "destroyall")
+    destroy_all
+    ;;
+  "rsync")
+    rsync_files
+    ;;
+  *)
+    echo "$red$bold"
+    echo "No function passed, exiting $clear"
+    echo "--------------------------------"
+    echo "Usage: devenv [function] [param]"
+    echo "$yellow$bold$uline"
+    echo "Functions:$clear"
+    echo ""
+    echo "  $green load $clear - Load the database from a sql file"
+    echo "  $green dump $clear - Dump the database to a sql file"
+    echo "  $green clone $clear - Clone the repo into the html directory"
+    echo "  $green start $clear - Start the development environment"
+    echo "  $green stop $clear - Stop the development environment"
+    echo "  $green preload $clear - Run the preload script (load public/private files)"
+    echo "  $green attach $clear - Attach to the frontend container"
+    echo "  $green attachto $clear - Attach to an active container"
+    echo "  $green destroy $clear - Destroy the development environment"
+    echo "  $green destroyall $clear - Destroy all containers, images, volumes, networks, and your dev environment"
+    echo "  $green rsync $clear - Rsync the sites/default/files from uwtdev3 to local"
+    echo ""
+    exit 1
+    ;;
+  esac
+}
+
+main
